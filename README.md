@@ -1,4 +1,3 @@
-Markdown
 
 # 🧟 Zoombie_killer (zkill.sh) 🧟‍♀️
 
