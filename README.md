@@ -8,6 +8,8 @@
 
 A robust Bash script to detect, analyze, and optionally eliminate zombie processes on Linux systems. It provides logging, cron-friendly operation, and aims for broad compatibility across distributions.
 
+![](https://github.com/adalbertobrant/zoombiekiller/blob/main/Screenshot%20from%202025-06-05%2010-56-56.png)
+
 ## 🤔 What are Zombie Processes?
 
 A zombie process (or "defunct" process) is a process that has completed execution but still has an entry in the process table. This entry is needed to allow the parent process to read its child's exit status. If a parent process doesn't "reap" its zombie children (by calling `wait()` or similar), they remain in the process table.
