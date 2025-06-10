@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ubuntu 24.04 Desktop - Limpeza de Zombies</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Ubuntu', sans-serif;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><defs><radialGradient id="grad" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:%23e95420;stop-opacity:0.3"/><stop offset="100%" style="stop-color:%23772953;stop-opacity:0.8"/></radialGradient></defs><rect width="100%" height="100%" fill="url(%23grad)"/><circle cx="960" cy="540" r="200" fill="%23e95420" opacity="0.4"/><circle cx="1200" cy="300" r="150" fill="%23772953" opacity="0.3"/><circle cx="720" cy="700" r="180" fill="%23e95420" opacity="0.2"/></svg>');
+            background-size: cover;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            cursor: crosshair;
+            transition: cursor 0.3s ease;
+        }
+
+        .system-slow {
+            cursor: wait;
+        }
+
+        .system-fast {
+            cursor: default;
+        }
+
+        /* Ubuntu Top Bar */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            background: rgba(45, 45, 45, 0.95);
+            backdrop-filter: blur(10px);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .activities {
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .activities:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .clock {
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .system-indicators {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .indicator {
+            width: 16px;
+            height: 16px;
+            opacity: 0.8;
+        }
+
+        /* Left Dock */
+        .dock {
+            position: fixed;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(45, 45, 45, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 999;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .dock-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: linear-gradient(135deg, #666, #888);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dock-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(233, 84, 32, 0.4);
+        }
+
+        .dock-icon.terminal {
+            background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
+            color: #fff;
+            font-size: 20px;
+        }
+
+        .dock-icon.terminal:hover {
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.6);
+        }
+
+        .dock-icon.firefox {
+            background: linear-gradient(135deg, #ff7139, #ff4500);
+            color: white;
+        }
+
+        .dock-icon.ubuntu-software {
+            background: linear-gradient(135deg, #e95420, #772953);
+            color: white;
+        }
+
+        .dock-icon.files {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        /* Terminal Window */
+        .terminal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 700px;
+            height: 450px;
+            background: rgba(19, 19, 19, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            display: none;
+            z-index: 1001;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            outline: none; /* Adicionado para remover o contorno azul do foco */
+        }
+
+        .terminal-header {
+            height: 32px;
+            background: rgba(45, 45, 45, 0.9);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 12px;
+            color: #ccc;
+            border-bottom: 1px solid rgba(76, 175, 80, 0.2);
+        }
+
+        .terminal-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .terminal-button {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .terminal-button:hover {
+            transform: scale(1.1);
+        }
+
+        .close { background: #ff5f57; }
+        .minimize { background: #ffbd2e; }
+        .maximize { background: #28ca42; }
+
+        .terminal-content {
+            padding: 16px;
+            height: calc(100% - 32px);
+            font-size: 14px;
+            line-height: 1.4;
+            overflow-y: auto;
+        }
+
+        .prompt {
+            color: #4caf50;
+            font-weight: bold;
+        }
+
+        .command {
+            color: #fff;
+        }
+
+        .cursor {
+            background: #4caf50;
+            animation: blink 1s infinite;
+            padding: 0 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .terminal-help {
+            color: #888;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+
+        /* Zombies */
+        .zombie {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: #4caf50;
+            border-radius: 4px;
+            z-index: 500;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+            image-rendering: pixelated;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5);
+        }
+
+        .zombie::before {
+            content: '🧟';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            filter: hue-rotate(90deg) brightness(1.2);
+        }
+
+        .zombie.exploding {
+            animation: explode 0.5s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(2);
+                opacity: 0.8;
+                background: #ff4444;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Glitch effects */
+        .glitch {
+            animation: glitch 0.3s infinite;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        /* Files Window */
+        .files-window {
+            position: fixed;
+            top: 15%;
+            left: 20%;
+            width: 500px;
+            height: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1001;
+        }
+
+        .files-header {
+            height: 32px;
+            background: rgba(45, 45, 45, 0.9);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            color: white;
+            font-size: 12px;
+        }
+
+        .files-content {
+            padding: 16px;
+            height: calc(100% - 32px);
+            color: #333;
+        }
+
+        /* Mouse cursor effect */
+        .mouse-trail {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: rgba(233, 84, 32, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+        }
+
+        .system-slow .mouse-trail {
+            animation: trailFade 0.8s ease-out forwards;
+        }
+
+        @keyframes trailFade {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+        }
+
+        /* Status message */
+        .status-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(45, 45, 45, 0.95);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            font-size: 18px;
+            z-index: 2000;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 2px solid #4caf50;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .terminal {
+                width: 90vw;
+                height: 60vh;
+            }
+            
+            .dock {
+                left: 4px;
+                padding: 4px;
+                gap: 4px;
+            }
+            
+            .dock-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+        }
+
+        /* Loading indicator */
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #4caf50;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="system-slow">
+    <!-- Ubuntu Top Bar -->
+    <div class="top-bar">
+        <div class="activities">Atividades</div>
+        <div class="clock" id="clock">Ter Jun 10 14:30</div>
+        <div class="system-indicators">
+            <div class="indicator">🔊</div>
+            <div class="indicator">📶</div>
+            <div class="indicator">🔋</div>
+        </div>
+    </div>
+
+    <!-- Left Dock -->
+    <div class="dock">
+        <div class="dock-icon firefox" id="terminalIcon" title="Bash Terminal">🖥️</div>
+        <div class="dock-icon terminal" id="terminalIcon" title="Terminal - Clique para abrir">🖥️</div>
+        <div class="dock-icon terminal" id="terminalIcon" title="Terminal - Clique para abrir">>_</div>
+        <div class="dock-icon ubuntu-software" id="terminalIcon" title="Ubuntu Software">📦</div>
+        <div class="dock-icon files" id="filesIcon" title="Arquivos">📁</div>
+    </div>
+
+    <!-- Terminal Window -->
+    <!-- ⭐ CORREÇÃO APLICADA AQUI ⭐ -->
+    <div class="terminal" id="terminal" tabindex="-1">
+        <div class="terminal-header">
+            <div class="terminal-title">
+                <span>🖥️</span>
+                <span>Terminal - Limpeza de Zombies</span>
+            </div>
+            <div class="terminal-buttons">
+                <div class="terminal-button minimize" title="Minimizar"></div>
+                <div class="terminal-button maximize" title="Maximizar"></div>
+                <div class="terminal-button close" id="closeTerminal" title="Fechar"></div>
+            </div>
+        </div>
+        <div class="terminal-content" id="terminalContent">
+            <div class="terminal-help">Digite "bash zkill.sh" e pressione Enter para eliminar todos os zombies</div>
+            <div><span class="prompt">user@ubuntu:~$</span> <span class="command" id="commandText"></span><span class="cursor" id="cursor">█</span></div>
+        </div>
+    </div>
+
+    <!-- Files Window -->
+    <div class="files-window" id="filesWindow">
+        <div class="files-header">
+            <span>📁 Arquivos</span>
+            <div class="terminal-buttons">
+                <div class="terminal-button minimize"></div>
+                <div class="terminal-button maximize"></div>
+                <div class="terminal-button close" id="closeFiles"></div>
+            </div>
+        </div>
+        <div class="files-content">
+            <h3>Pasta Home</h3>
+            <p>📁 Documentos</p>
+            <p>📁 Downloads</p>
+            <p>📁 Imagens</p>
+            <p>📁 Vídeos</p>
+            <p>📄 zkill.sh - Script de limpeza de zombies</p>
+        </div>
+    </div>
+
+    <!-- Status Message -->
+    <div class="status-message" id="statusMessage">
+        <div>✅ Sistema Limpo!</div>
+        <div>Todos os zombies foram eliminados.</div>
+    </div>
+
+    <script>
+        let zombies = [];
+        let isSystemSlow = true;
+        let terminalOpen = false;
+        let commandTyped = false;
+        let zombieSpawnInterval;
+
+        // Update clock in Portuguese
+        function updateClock() {
+            const now = new Date();
+            const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            const dayName = days[now.getDay()];
+            const monthName = months[now.getMonth()];
+            const day = now.getDate();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            
+            const timeString = `${dayName} ${monthName} ${day} ${hours}:${minutes}`;
+            document.getElementById('clock').textContent = timeString;
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // Create mouse trail effect when system is slow
+        document.addEventListener('mousemove', (e) => {
+            if (isSystemSlow) {
+                const trail = document.createElement('div');
+                trail.className = 'mouse-trail';
+                trail.style.left = e.clientX + 'px';
+                trail.style.top = e.clientY + 'px';
+                document.body.appendChild(trail);
+                
+                // Spawn zombie on mouse movement (25% chance)
+                if (Math.random() < 0.25 && zombies.length < 12) {
+                    createZombie();
+                }
+                
+                setTimeout(() => {
+                    if (trail.parentNode) {
+                        trail.parentNode.removeChild(trail);
+                    }
+                }, 800);
+            }
+        });
+
+        // Create zombies
+        function createZombie() {
+            const zombie = document.createElement('div');
+            zombie.className = 'zombie';
+            
+            // Random spawn position from edges
+            const side = Math.floor(Math.random() * 4);
+            switch(side) {
+                case 0: // top
+                    zombie.style.left = Math.random() * window.innerWidth + 'px';
+                    zombie.style.top = '32px'; // Below top bar
+                    break;
+                case 1: // right
+                    zombie.style.left = (window.innerWidth - 32) + 'px';
+                    zombie.style.top = (32 + Math.random() * (window.innerHeight - 64)) + 'px';
+                    break;
+                case 2: // bottom
+                    zombie.style.left = Math.random() * window.innerWidth + 'px';
+                    zombie.style.top = (window.innerHeight - 32) + 'px';
+                    break;
+                case 3: // left
+                    zombie.style.left = '80px'; // After dock
+                    zombie.style.top = (32 + Math.random() * (window.innerHeight - 64)) + 'px';
+                    break;
+            }
+            
+            document.body.appendChild(zombie);
+            zombies.push(zombie);
+            
+            // Move zombie randomly
+            moveZombie(zombie);
+        }
+
+        function moveZombie(zombie) {
+            const moveInterval = setInterval(() => {
+                if (!zombie.parentNode || zombie.classList.contains('exploding')) {
+                    clearInterval(moveInterval);
+                    return;
+                }
+                
+                const currentX = parseInt(zombie.style.left);
+                const currentY = parseInt(zombie.style.top);
+                
+                const newX = currentX + (Math.random() - 0.5) * 50;
+                const newY = currentY + (Math.random() - 0.5) * 50;
+                
+                zombie.style.left = Math.max(80, Math.min(window.innerWidth - 32, newX)) + 'px';
+                zombie.style.top = Math.max(32, Math.min(window.innerHeight - 32, newY)) + 'px';
+                
+                // Add glitch effect occasionally
+                if (Math.random() < 0.15) {
+                    zombie.classList.add('glitch');
+                    setTimeout(() => zombie.classList.remove('glitch'), 300);
+                }
+            }, 800 + Math.random() * 1500);
+        }
+
+        // Spawn zombies periodically
+        function startZombieSpawning() {
+            zombieSpawnInterval = setInterval(() => {
+                if (zombies.length < 10 && isSystemSlow) {
+                    createZombie();
+                }
+            }, 1200);
+        }
+
+        // Terminal functionality
+        document.getElementById('terminalIcon').addEventListener('click', () => {
+            if (isSystemSlow) {
+                // Show loading effect
+                const icon = document.getElementById('terminalIcon');
+                const originalContent = icon.innerHTML;
+                icon.innerHTML = '<div class="loading"></div>';
+                
+                setTimeout(() => {
+                    icon.innerHTML = originalContent;
+                    document.getElementById('terminal').style.display = 'block';
+                    terminalOpen = true;
+                    // Focus on terminal for keyboard input
+                    document.getElementById('terminal').focus();
+                }, 1000 + Math.random() * 1000); // Slow response when system is slow
+            } else {
+                document.getElementById('terminal').style.display = 'block';
+                terminalOpen = true;
+                document.getElementById('terminal').focus();
+            }
+        });
+
+        document.getElementById('closeTerminal').addEventListener('click', () => {
+            document.getElementById('terminal').style.display = 'none';
+            terminalOpen = false;
+            commandTyped = false;
+            // Reset terminal content
+            resetTerminal();
+        });
+
+        function resetTerminal() {
+            const terminalContent = document.getElementById('terminalContent');
+            terminalContent.innerHTML = `
+                <div class="terminal-help">Digite "bash zkill.sh" e pressione Enter para eliminar todos os zombies</div>
+                <div><span class="prompt">user@ubuntu:~$</span> <span class="command" id="commandText"></span><span class="cursor" id="cursor">█</span></div>
+            `;
+            document.getElementById('commandText').textContent = '';
+            typedCommand = '';
+        }
+
+        // Files functionality
+        document.getElementById('filesIcon').addEventListener('click', () => {
+            if (!isSystemSlow) {
+                document.getElementById('filesWindow').style.display = 'block';
+            }
+        });
+
+        document.getElementById('closeFiles').addEventListener('click', () => {
+            document.getElementById('filesWindow').style.display = 'none';
+        });
+
+        // Command typing
+        const targetCommand = 'bash zkill.sh';
+        let typedCommand = '';
+
+        document.addEventListener('keydown', (e) => {
+            if (terminalOpen && !commandTyped) {
+                e.preventDefault(); // Prevent default browser behavior
+                
+                if (e.key === 'Backspace') {
+                    typedCommand = typedCommand.slice(0, -1);
+                } else if (e.key === 'Enter') {
+                    if (typedCommand === targetCommand) {
+                        executeZkill();
+                    } else if (typedCommand.length > 0) {
+                        showCommandError();
+                    }
+                } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey) {
+                    typedCommand += e.key;
+                }
+                
+                document.getElementById('commandText').textContent = typedCommand;
+            }
+        });
+
+        function showCommandError() {
+            const terminalContent = document.getElementById('terminalContent');
+            terminalContent.innerHTML += `<br><span style="color: #ff6b6b;">bash: ${typedCommand}: comando não encontrado</span>`;
+            
+            const newPrompt = document.createElement('div');
+            newPrompt.innerHTML = `<span class="prompt">user@ubuntu:~$</span> <span class="command" id="commandText"></span><span class="cursor" id="cursor">█</span>`;
+            terminalContent.appendChild(newPrompt);
+            terminalContent.scrollTop = terminalContent.scrollHeight;
+
+            typedCommand = '';
+        }
+
+        // Execute zkill command
+        function executeZkill() {
+            commandTyped = true;
+            document.getElementById('cursor').style.display = 'none';
+            
+            // Add execution result with animation
+            const terminalContent = document.getElementById('terminalContent');
+            const messages = [
+                '<br>Executando script de limpeza de zombies...',
+                '<br>🔍 Escaneando processos zombies...',
+                '<br>🎯 Identificando alvos...',
+                '<br>💥 Eliminando ameaças...',
+                '<br><span style="color: #4caf50;">✅ Todos os zombies eliminados com sucesso!</span>',
+                '<br><span style="color: #4caf50;">🚀 Sistema otimizado e funcionando rapidamente!</span>',
+                '<br><span class="prompt">user@ubuntu:~$</span>'
+            ];
+            
+            let messageIndex = 0;
+            const messageInterval = setInterval(() => {
+                if (messageIndex < messages.length) {
+                    terminalContent.innerHTML += messages[messageIndex];
+                    terminalContent.scrollTop = terminalContent.scrollHeight;
+                    messageIndex++;
+                } else {
+                    clearInterval(messageInterval);
+                }
+            }, 500);
+            
+            // Explode all zombies with staggered timing
+            zombies.forEach((zombie, index) => {
+                setTimeout(() => {
+                    zombie.classList.add('exploding');
+                    setTimeout(() => {
+                        if (zombie.parentNode) {
+                            zombie.parentNode.removeChild(zombie);
+                        }
+                    }, 500);
+                }, index * 100);
+            });
+            
+            zombies = [];
+            
+            // Clear zombie spawn interval
+            clearInterval(zombieSpawnInterval);
+            
+            // Switch to fast system
+            setTimeout(() => {
+                isSystemSlow = false;
+                document.body.className = 'system-fast';
+                
+                // Show status message
+                const statusMsg = document.getElementById('statusMessage');
+                statusMsg.style.display = 'block';
+                setTimeout(() => {
+                    statusMsg.style.display = 'none';
+                }, 4000);
+                
+                // Close terminal after showing success
+                setTimeout(() => {
+                    document.getElementById('terminal').style.display = 'none';
+                    terminalOpen = false;
+                }, 3000);
+            }, 2000);
+        }
+
+        // Initialize with some zombies
+        setTimeout(() => {
+            for(let i = 0; i < 3; i++) {
+                setTimeout(() => createZombie(), i * 600);
+            }
+            startZombieSpawning();
+        }, 1000);
+
+        // Add keyboard shortcut info
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🖥️ Terminal Ubuntu - Limpeza de Zombies');
+            console.log('💡 Dica: Clique no ícone do terminal no dock e digite "bash zkill.sh"');
+        });
+    </script>
+</body>
+</html>
